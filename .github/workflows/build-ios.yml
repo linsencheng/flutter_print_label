@@ -1,0 +1,48 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Flutter
+        run: |
+          git clone https://github.com/flutter/flutter.git \
+            --depth 1 \
+            --branch stable \
+            $HOME/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+
+      - name: Check Flutter
+        run: flutter --version
+
+      - name: Get dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        working-directory: example
+        run: |
+          flutter clean
+          flutter pub get
+          flutter build ios --release --no-codesign
+
+      - name: Create unsigned IPA
+        working-directory: example
+        run: |
+          mkdir -p build/ios/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -qry FlutterPrintLabel-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlutterPrintLabel-iOS
+          path: example/build/ios/ipa/FlutterPrintLabel-unsigned.ipa
